@@ -1,0 +1,150 @@
+{% load static %}
+{% load chat_extras %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hach{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{% static 'chat/img/logo.png' %}">
+    <link rel="stylesheet" href="{% static 'chat/css/style.css' %}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    {% if user.is_authenticated %}
+    <div class="container">
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <a href="{% url 'conversation_list' %}"
+                        style="display: flex; align-items: center; text-decoration: none;">
+                        <img src="{% static 'chat/img/logo.png' %}"
+                            style="width: 120px; height: 120px; object-fit: contain;">
+                    </a>
+                    <span style="font-weight: 700; color: var(--primary-color); font-size: 1.3rem;">Hach</span>
+                </div>
+                <div style="display: flex; gap: 18px; color: var(--text-secondary); font-size: 1.1rem;">
+                    <a href="{% url 'sent_requests' %}" title="Sent Demands" style="color: inherit;"><i
+                            class="fas fa-paper-plane"></i></a>
+                    <a href="{% url 'inbox' %}" title="Inbox" style="color: inherit;"><i
+                            class="fas fa-envelope"></i></a>
+                    <a href="{% url 'profile' %}" title="Profile" style="color: inherit;"><i
+                            class="fas fa-user-circle"></i></a>
+                    <form method="post" action="/accounts/logout/" style="margin:0; display: inline;">
+                        {% csrf_token %}
+                        <button type="submit"
+                            style="background:none; border:none; cursor:pointer; color: inherit; font-size: 1.1rem; padding:0;"
+                            title="Logout">
+                            <i class="fas fa-right-from-bracket"></i>
+                        </button>
+                    </form>
+                </div>
+            </header>
+
+            <div class="sidebar-search">
+                <form method="post" action="{% url 'send_request' %}" class="search-container">
+                    {% csrf_token %}
+                    <i class="fas fa-search" style="color: var(--text-secondary); font-size: 0.8rem;"></i>
+                    <input type="text" name="username" placeholder="Type username to send request..." required>
+                </form>
+            </div>
+
+            <div class="conv-list">
+                {% for conv in all_conversations %}
+                {% with other=conv|get_partner:request.user %}
+                <a href="{% url 'conversation_detail' conv.id %}"
+                    class="conv-item {% if conversation.id == conv.id %}active{% endif %}">
+                    {% if other.profile.image %}
+                    <img src="{{ other.profile.image.url }}"
+                        style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover;">
+                    {% else %}
+                    <div
+                        style="width: 45px; height: 45px; border-radius: 50%; background: var(--bg-header); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: var(--text-secondary);">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    {% endif %}
+                    <div style="flex: 1; min-width: 0; margin-left: 5px;">
+                        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                            <span
+                                style="font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {% if other == request.user %}
+                                You (Message Yourself)
+                                {% else %}
+                                {% if other.first_name or other.last_name %}
+                                {{ other.first_name }} {{ other.last_name }}
+                                {% else %}
+                                {{ other.username }}
+                                {% endif %}
+                                {% endif %}
+                            </span>
+                            <span style="font-size: 0.7rem; color: var(--text-secondary);">
+                                {{ conv.messages.last.timestamp|date:"D" }}
+                            </span>
+                        </div>
+                        {% with last_msg=conv|get_last_message:request.user %}
+                        <p
+                            style="font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">
+                            {{ last_msg.decrypted_content|default:"No messages yet" }}
+                        </p>
+                        {% endwith %}
+                    </div>
+                </a>
+                {% endwith %}
+                {% endfor %}
+            </div>
+        </aside>
+
+        <main class="content-pane" id="main-pane">
+            {% else %}
+            <div class="auth-container">
+                {% endif %}
+
+                {% if messages %}
+                <div
+                    style="{% if user.is_authenticated %}position: absolute; top: 20px; right: 20px; z-index: 100; pointer-events: none;{% else %}margin-bottom: 20px;{% endif %}">
+                    {% for message in messages %}
+                    <div class="message {{ message.tags }}"
+                        style="{% if user.is_authenticated %}pointer-events: auto; min-width: 250px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+
+                {% if user.is_authenticated %}
+        </main>
+    </div>
+    {% else %}
+    </div>
+    {% endif %}
+
+    <script>
+        // Auto-scroll chat window if it exists
+        var chatWindow = document.getElementById('chat-window');
+        if (chatWindow) {
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Mobile toggle logic (simple version)
+        if (window.innerWidth <= 768) {
+            const sidebar = document.querySelector('.sidebar');
+            const mainPane = document.getElementById('main-pane');
+            const isChatView = window.location.pathname.includes('/chat/') && window.location.pathname.length > 6;
+
+            if (isChatView) {
+                if (sidebar) sidebar.style.display = 'none';
+                if (mainPane) mainPane.style.display = 'flex';
+            } else {
+                if (sidebar) sidebar.style.display = 'flex';
+                if (mainPane) mainPane.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

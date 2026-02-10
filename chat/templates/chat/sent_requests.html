@@ -1,0 +1,29 @@
+{% extends 'chat/base_new.html' %}
+
+{% block title %}Sent Requests{% endblock %}
+
+{% block content %}
+<div style="flex: 1; padding: 20px; background: var(--bg-main); overflow-y: auto;">
+    <h2 style="margin-bottom: 24px;">Sent Demands</h2>
+
+    <ul>
+        {% for r in requests %}
+        <li>
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600;">{{ r.receiver.username }}</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">Sent {{ r.created_at|timesince }}
+                    ago</span>
+            </div>
+            <div>
+                {% if r.accepted %}
+                <span style="color: var(--success); font-weight: 600;">Accepted</span>
+                {% else %}
+                <span style="color: var(--text-secondary);">Pending</span>
+                {% endif %}
+            </div>
+        </li>
+        {% empty %}
+        <p style="color: var(--text-secondary); text-align: center; margin: 40px 0;">No sent demands.</p>
+        {% endfor %}
+    </ul>
+{% endblock %}

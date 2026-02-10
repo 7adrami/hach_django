@@ -1,0 +1,437 @@
+{% extends 'chat/base_new.html' %}
+{% load static %}
+
+{% block title %}Chat with {{ other_user.username }}{% endblock %}
+
+{% block content %}
+<div class="chat-header"
+    style="display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--glass-border);">
+    <a href="{% url 'conversation_list' %}"
+        style="color: var(--text-secondary); margin-right: 10px; font-size: 1.2rem; text-decoration: none;"
+        id="back-btn"><i class="fas fa-arrow-left"></i></a>
+
+    {% if other_user.profile.image %}
+    <img src="{{ other_user.profile.image.url }}"
+        style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+    {% else %}
+    <div
+        style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-main); display: flex; align-items: center; justify-content: center; color: var(--text-secondary);">
+        <i class="fas fa-user"></i>
+    </div>
+    {% endif %}
+
+    <div style="flex: 1;">
+        <p style="font-weight: 600; margin: 0; font-size: 1rem;">
+            {% if other_user == request.user %}
+            You (Me)
+            {% else %}
+            {% if other_user.first_name or other_user.last_name %}
+            {{ other_user.first_name }} {{ other_user.last_name }}
+            {% else %}
+            {{ other_user.username }}
+            {% endif %}
+            {% endif %}
+        </p>
+
+    </div>
+</div>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <span
+        style="background: rgba(255,235,165,0.1); color: #ffeb3b; padding: 4px 12px; border-radius: 8px; font-size: 0.7rem; border: 1px solid rgba(255,235,163,0.2);">
+        <i class="fas fa-lock" style="font-size: 0.7rem; margin-right: 5px;"></i> Messages are end-to-end encrypted. No
+        one outside of this chat can read them.
+    </span>
+</div>
+
+<div class="chat-window" id="chat-window"
+    style="background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-size: contain; background-blend-mode: overlay; background-color: rgba(15, 23, 42, 0.9);">
+    {% for message in chat_messages %}
+    {% if request.user not in message.deleted_by.all %}
+    <div class="message-wrapper" data-id="{{ message.id }}"
+        style="display: flex; flex-direction: column; {% if message.sender == request.user %}align-self: flex-end;{% else %}align-self: flex-start;{% endif %} margin-bottom: 12px; max-width: 85%;">
+
+        <div class="msg-bubble {% if message.sender == request.user %}msg-sent{% else %}msg-received{% endif %}"
+            style="margin-bottom: 2px; border-radius: 12px; position: relative; {% if message.sender == request.user %}background: #056162 !important; border-bottom-right-radius: 2px;{% else %}background: #262d31 !important; border-bottom-left-radius: 2px;{% endif %}">
+
+            {% if message.is_deleted %}
+            <p style="font-size: 0.85rem; font-style: italic; color: rgba(255,255,255,0.5); margin: 0;">🚫 This message
+                was deleted</p>
+            {% else %}
+
+            {% if message.parent and not message.parent.is_deleted %}
+            <div style="background: rgba(0,0,0,0.1); border-left: 3px solid var(--accent-color); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; opacity: 0.8;"
+                onclick="location.href='#msg-{{ message.parent.id }}'">
+                <div style="font-weight: bold; color: var(--accent-color); margin-bottom: 2px;">
+                    {% if message.parent.sender == request.user %}
+                    You
+                    {% else %}
+                    {{ message.parent.sender.username }}
+                    {% endif %}
+                </div>
+                <div
+                    style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ message.parent.decrypted_content|default:message.parent.content }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if message.file %}
+            {% if message.is_audio %}
+            <div style="margin-bottom: 8px;">
+                <audio controls style="width: 200px; height: 35px;">
+                    <source src="{{ message.file.url }}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+            {% elif message.is_image %}
+            <div style="margin-bottom: 4px;">
+                <img src="{{ message.file.url }}" class="chat-image" onclick="window.open(this.src, '_blank')">
+            </div>
+            {% else %}
+            <div
+                style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-file-lines" style="font-size: 1.2rem;"></i>
+                <a href="{{ message.file.url }}" target="_blank"
+                    style="color: white; font-size: 0.8rem; text-decoration: underline;">
+                    View Attachment
+                </a>
+            </div>
+            {% endif %}
+            {% endif %}
+
+            {% if message.content %}
+            <p style="font-size: 0.95rem; line-height: 1.4; margin: 0;">{{ message.decrypted_content }}</p>
+            {% endif %}
+            {% endif %}
+
+            <div
+                style="text-align: right; margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <div style="display: flex; gap: 4px;">
+                    {% for reaction in message.reactions.all %}
+                    <span
+                        style="font-size: 0.75rem; padding: 2px 6px; background: rgba(255,255,255,0.1); border-radius: 12px;">{{reaction.emoji}}</span>
+                    {% endfor %}
+                </div>
+                <span style="font-size: 0.6rem; color: rgba(255,255,255,0.6);">{{ message.timestamp|date:"H:i" }}</span>
+            </div>
+
+            <!-- Context Menu -->
+            <div class="msg-actions"
+                style="position: absolute; top: -8px; right: -8px; opacity: 0.3; transition: opacity 0.2s;">
+                <button onclick="toggleMenu({{ message.id }}, event)"
+                    style="background: var(--bg-header); border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: var(--text-secondary); box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+                <div id="menu{{ message.id }}" class="msg-menu"
+                    style="display: none; position: absolute; right: 0; top: 30px; background: var(--bg-header); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-width: 150px; z-index: 100;">
+                    <form method="post" action="{% url 'add_reaction' message.id %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <div
+                            style="display: flex; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--glass-border);">
+                            <button type="submit" name="emoji" value="👍"
+                                style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">👍</button>
+                            <button type="submit" name="emoji" value="❤️"
+                                style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">❤️</button>
+                            <button type="submit" name="emoji" value="😂"
+                                style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">😂</button>
+                            <button type="submit" name="emoji" value="😮"
+                                style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">😮</button>
+                            <button type="submit" name="emoji" value="🔥"
+                                style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">🔥</button>
+                        </div>
+                    </form>
+                    <button
+                        onclick="setReply({{ message.id }}, '{{ message.sender.username }}', '{{ message.decrypted_content|default:message.content|escapejs }}')"
+                        style="background: none; border: none; color: var(--text-primary); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                        onmouseout="this.style.background='none'">
+                        <i class="fas fa-reply" style="margin-right: 8px;"></i>Reply
+                    </button>
+                    <form method="post" action="{% url 'delete_message' message.id %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" name="delete_type" value="for_me"
+                            style="background: none; border: none; color: var(--text-primary); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;"
+                            onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                            onmouseout="this.style.background='none'">
+                            <i class="fas fa-trash" style="margin-right: 8px;"></i>Delete for Me
+                        </button>
+                        {% if message.sender == request.user %}
+                        <button type="submit" name="delete_type" value="for_everyone"
+                            style="background: none; border: none; color: var(--error); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;"
+                            onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+                            onmouseout="this.style.background='none'">
+                            <i class="fas fa-trash-alt" style="margin-right: 8px;"></i>Delete for Everyone
+                        </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% empty %}
+    <p id="empty-msg" style="color: var(--text-secondary); text-align: center; padding-top: 150px;">Start
+        the
+        conversation with an
+        encrypted message.</p>
+    {% endfor %}
+</div>
+
+<div id="reply-preview"
+    style="display: none; background: rgba(0,0,0,0.2); border-left: 3px solid var(--accent-color); padding: 8px 12px; margin-bottom: 10px; border-radius: 4px; position: relative;">
+    <div style="font-weight: bold; color: var(--accent-color); font-size: 0.8rem; margin-bottom: 2px;" id="reply-user">
+    </div>
+    <div id="reply-text"
+        style="color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 30px;">
+    </div>
+    <button onclick="cancelReply()"
+        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1rem;">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+
+<form id="chat-form" method="post" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+    {% csrf_token %}
+    <input type="hidden" name="parent_id" id="parent-id-input">
+    <label for="file-upload" style="cursor: pointer; margin: 0; font-size: 1.2rem; color: var(--text-secondary);"
+        title="Attach File"><i class="fas fa-paperclip"></i></label>
+    <input id="file-upload" type="file" name="file" style="display: none;"
+        onchange="document.getElementById('file-info').textContent = 'File selected: ' + this.files[0].name;">
+    <input type="text" name="content" id="chat-input" placeholder="Type a message..."
+        style="margin-bottom: 0; flex: 1; background: #262d31; border: none; border-radius: 24px;">
+    <input type="hidden" name="is_audio" id="is_audio" value="false">
+    <button type="submit" class="btn"
+        style="border-radius: 50%; width: 45px; height: 45px; padding: 0; display: flex; align-items: center; justify-content: center;"><i
+            class="fas fa-paper-plane" style="font-size: 1.2rem;"></i></button>
+</form>
+<div id="file-info" style="font-size: 0.75rem; color: var(--success); margin-top: 5px; padding-left: 40px;">
+</div>
+
+<script>
+    function toggleMenu(id, event) {
+        if (event) event.stopPropagation();
+        const menu = document.getElementById('menu' + id);
+        const allMenus = document.querySelectorAll('.msg-menu');
+
+        // Hide others
+        allMenus.forEach(m => {
+            if (m.id !== 'menu' + id) m.style.display = 'none';
+        });
+
+        if (menu) {
+            const isHidden = menu.style.display === 'none' || menu.style.display === '';
+            menu.style.display = isHidden ? 'block' : 'none';
+        }
+    }
+
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.msg-menu') && !e.target.closest('.msg-actions button')) {
+            document.querySelectorAll('.msg-menu').forEach(m => m.style.display = 'none');
+        }
+    });
+
+    const chatWindow = document.getElementById('chat-window');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const emptyMsg = document.getElementById('empty-msg');
+    const currentUser = "{{ request.user.username }}";
+    const csrfToken = "{{ csrf_token }}";
+
+    function setReply(id, username, text) {
+        document.getElementById('parent-id-input').value = id;
+        document.getElementById('reply-user').textContent = 'Replying to ' + username;
+        document.getElementById('reply-text').textContent = text;
+        document.getElementById('reply-preview').style.display = 'block';
+        chatInput.focus();
+        // Hide context menu
+        const menu = document.getElementById('menu' + id);
+        if (menu) menu.style.display = 'none';
+    }
+
+    function cancelReply() {
+        document.getElementById('parent-id-input').value = '';
+        document.getElementById('reply-preview').style.display = 'none';
+    }
+
+    function scrollToBottom() {
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+    scrollToBottom();
+
+    // AJAX Send
+    chatForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(chatForm);
+        if (!formData.get('content') && !formData.get('file').name) return;
+
+        const response = await fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (response.ok) {
+            chatInput.value = '';
+            document.getElementById('file-upload').value = '';
+            document.getElementById('file-info').textContent = '';
+            cancelReply();
+            pollMessages();
+        }
+    };
+
+    // AJAX Poll
+    let lastId = 0;
+    function updateLastId() {
+        const wrappers = document.querySelectorAll('.message-wrapper');
+        if (wrappers.length > 0) {
+            lastId = wrappers[wrappers.length - 1].dataset.id;
+        }
+    }
+    updateLastId();
+
+    async function pollMessages() {
+        // Fetch updates even for existing messages
+        const response = await fetch("{% url 'get_messages' conversation.id %}?after=" + lastId);
+        if (response.ok) {
+            const messages = await response.json();
+            if (messages.length > 0) {
+                if (emptyMsg) emptyMsg.style.display = 'none';
+                let hasNewMessages = false;
+
+                messages.forEach(msg => {
+                    const existing = document.querySelector(`.message-wrapper[data-id="${msg.id}"]`);
+
+                    // If message is deleted, update it everywhere
+                    if (msg.is_deleted) {
+                        if (existing) {
+                            const bubble = existing.querySelector('.msg-bubble');
+                            if (!bubble.innerHTML.includes('🚫')) {
+                                bubble.innerHTML = `<p style="font-size: 0.85rem; font-style: italic; color: rgba(255,255,255,0.5); margin: 0;">🚫 This message was deleted</p>`;
+                            }
+                        }
+                    }
+
+                    if (existing) return;
+                    hasNewMessages = true;
+
+                    const div = document.createElement('div');
+                    div.className = 'message-wrapper';
+                    div.dataset.id = msg.id;
+                    div.style.cssText = `display: flex; flex-direction: column; ${msg.is_me ? 'align-self: flex-end;' : 'align-self: flex-start;'} margin-bottom: 12px; max-width: 85%;`;
+
+                    let contentHtml = '';
+                    if (msg.is_deleted) {
+                        contentHtml = `<p style="font-size: 0.85rem; font-style: italic; color: rgba(255,255,255,0.5); margin: 0;">🚫 This message was deleted</p>`;
+                    } else {
+                        if (msg.parent_id) {
+                            contentHtml += `
+<div style="background: rgba(0,0,0,0.1); border-left: 3px solid var(--accent-color); padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; opacity: 0.8;"
+    onclick="location.href='#msg-${msg.parent_id}'">
+    <div style="font-weight: bold; color: var(--accent-color); margin-bottom: 2px;">
+        ${msg.parent_sender === currentUser ? 'You' : msg.parent_sender}
+    </div>
+    <div style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+        ${msg.parent_content}
+    </div>
+</div>
+`;
+                        }
+                        if (msg.file_url) {
+                            if (msg.is_image) {
+                                contentHtml += `<div style="margin-bottom: 4px;"><img src="${msg.file_url}" class="chat-image" onclick="window.open(this.src, '_blank')"></div>`;
+                            } else if (msg.is_audio) {
+                                contentHtml += `<div style="margin-bottom: 8px;"><audio controls style="width: 200px; height: 35px;"><source src="${msg.file_url}" type="audio/mpeg"></audio></div>`;
+                            } else {
+                                contentHtml += `<div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;"><i class="fas fa-file-lines" style="font-size: 1.2rem;"></i><a href="${msg.file_url}" target="_blank" style="color: white; font-size: 0.8rem; text-decoration: underline;">View Attachment</a></div>`;
+                            }
+                        }
+                        if (msg.content) {
+                            contentHtml += `<p style="font-size: 0.95rem; line-height: 1.4; margin: 0;">${msg.content}</p>`;
+                        }
+                    }
+
+                    const menuHtml = `
+<div class="msg-actions" style="position: absolute; top: -8px; right: -8px; opacity: 0.3; transition: opacity 0.2s;">
+    <button onclick="toggleMenu(${msg.id}, event)"
+        style="background: var(--bg-header); border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: var(--text-secondary); box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+        <i class="fas fa-ellipsis-v"></i>
+    </button>
+    <div id="menu${msg.id}" class="msg-menu"
+        style="display: none; position: absolute; right: 0; top: 30px; background: var(--bg-header); border: 1px solid var(--glass-border); border-radius: 8px; padding: 8px; min-width: 150px; z-index: 100;">
+        <form method="post" action="/chat/message/${msg.id}/react/" style="margin: 0;">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <div
+                style="display: flex; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--glass-border);">
+                <button type="submit" name="emoji" value="👍"
+                    style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">👍</button>
+                <button type="submit" name="emoji" value="❤️"
+                    style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">❤️</button>
+                <button type="submit" name="emoji" value="😂"
+                    style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">😂</button>
+                <button type="submit" name="emoji" value="😮"
+                    style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">😮</button>
+                <button type="submit" name="emoji" value="🔥"
+                    style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">🔥</button>
+            </div>
+        </form>
+        <button onclick="setReply(${msg.id}, '${msg.sender}', '${msg.content ? msg.content.replace(/'/g, "\\'").replace(/"/g, '\\"') : ''}')"
+            style="background: none; border: none; color: var(--text-primary); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;"
+            onmouseover="this.style.background='rgba(255,255,255,0.1)'"
+            onmouseout="this.style.background='none'">
+            <i class="fas fa-reply" style="margin-right: 8px;"></i>Reply
+        </button>
+        <form method="post" action="/chat/message/${msg.id}/delete/" style="margin: 0;">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${csrfToken}">
+            <button type="submit" name="delete_type" value="for_me"
+                style="background: none; border: none; color: var(--text-primary); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;">
+                <i class="fas fa-trash" style="margin-right: 8px;"></i>Delete for Me
+            </button>
+            ${msg.is_me ? `
+            <button type="submit" name="delete_type" value="for_everyone"
+                style="background: none; border: none; color: var(--error); padding: 8px; width: 100%; text-align: left; cursor: pointer; border-radius: 4px;">
+                <i class="fas fa-trash-alt" style="margin-right: 8px;"></i>Delete for Everyone
+            </button>` : ''}
+        </form>
+    </div>
+</div>
+`;
+
+                    div.innerHTML = `
+<div class="msg-bubble ${msg.is_me ? 'msg-sent' : 'msg-received'}"
+    style="margin-bottom: 2px; border-radius: 12px; position: relative; ${msg.is_me ? 'background: #056162 !important; border-bottom-right-radius: 2px;' : 'background: #262d31 !important; border-bottom-left-radius: 2px;'}">
+    ${contentHtml}
+    <div
+        style="text-align: right; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 10px;">
+        <span style="font-size: 0.6rem; color: rgba(255,255,255,0.6);">${msg.timestamp}</span>
+    </div>
+    ${menuHtml}
+</div>
+`;
+                    chatWindow.appendChild(div);
+                    lastId = msg.id;
+                });
+                if (hasNewMessages) {
+                    scrollToBottom();
+                }
+            }
+        }
+    }
+
+    setInterval(pollMessages, 3000);
+
+    // Initial hover script fix for new messages
+    const observer = new MutationObserver(() => {
+        document.querySelectorAll('.msg-bubble').forEach(bubble => {
+            if (bubble.dataset.hasEvents) return;
+            const actions = bubble.querySelector('.msg-actions');
+            if (!actions) return;
+            bubble.addEventListener('mouseenter', () => actions.style.opacity = '1');
+            bubble.addEventListener('mouseleave', () => actions.style.opacity = '0.3');
+            bubble.dataset.hasEvents = 'true';
+        });
+    });
+    observer.observe(chatWindow, { childList: true });
+</script>
+{% endblock %}

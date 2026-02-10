@@ -1,0 +1,25 @@
+{% extends 'chat/base_new.html' %}
+
+{% block title %}Inbox - Chat Requests{% endblock %}
+
+{% block content %}
+<div style="flex: 1; padding: 20px; background: var(--bg-main); overflow-y: auto;">
+    <h2 style="margin-bottom: 24px;">Inbox</h2>
+
+    <h3>Pending Requests</h3>
+    <ul>
+        {% for r in requests %}
+        <li>
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-weight: 600;">{{ r.sender.username }}</span>
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">Sent {{ r.created_at|timesince }}
+                    ago</span>
+            </div>
+            <a href="{% url 'accept_request' r.id %}" class="btn"
+                style="padding: 8px 16px; font-size: 0.875rem;">Accept</a>
+        </li>
+        {% empty %}
+        <p style="color: var(--text-secondary); text-align: center; margin: 40px 0;">Your inbox is empty.</p>
+        {% endfor %}
+    </ul>
+{% endblock %}

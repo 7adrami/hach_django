@@ -1,0 +1,40 @@
+{% extends 'chat/base_new.html' %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div style="flex: 1; padding: 20px; background: var(--bg-main); overflow-y: auto;">
+    <h2 style="margin-bottom: 24px;">My Profile</h2>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        {% if user.profile.image %}
+        <img src="{{ user.profile.image.url }}"
+            style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary-color);">
+        {% else %}
+        <div
+            style="width: 120px; height: 120px; border-radius: 50%; background: var(--glass-bg); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem;">
+            <i class="fas fa-user"></i>
+        </div>
+        {% endif %}
+        <p style="margin-top: 15px; font-weight: 600;">{{ user.username }}</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary);">First Name</label>
+            <input type="text" name="first_name" value="{{ form.first_name.value|default:'' }}"
+                style="width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--glass-bg); color: var(--text-main);">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary);">Last Name</label>
+            <input type="text" name="last_name" value="{{ form.last_name.value|default:'' }}"
+                style="width: 100%; padding: 12px; border-radius: 8px; border: none; background: var(--glass-bg); color: var(--text-main);">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text-secondary);">Profile Picture</label>
+            {{ form.image }}
+        </div>
+        <button type="submit" class="btn" style="width: 100%; margin-top: 20px;">Save Profile</button>
+    </form>
+    {% endblock %}
